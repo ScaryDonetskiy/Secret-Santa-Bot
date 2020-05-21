@@ -32,8 +32,11 @@ export class JoinTeam implements ActionInterface {
                 userDocument.set({
                     teamId: doc.id,
                     username: username,
-                }).then(() => ctx.reply('You are joined a team! Now you can send me a command "/recipient" and I\'ll choose it for you',
-                    Markup.keyboard(['/recipient']).resize().extra()), null);
+                }).then(() => ctx
+                    .reply(
+                        'You are joined a team! Now you can send me a command "/recipient" and I\'ll choose it for you',
+                        Markup.keyboard(['/recipient']).resize().extra()
+                    ), null);
             } else {
                 ctx.reply('Team is not found :(').catch(console.error);
             }

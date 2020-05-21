@@ -20,11 +20,14 @@ bot.on('text', ctx => {
     new JoinTeam(db).do(ctx);
 });
 
-export const webhookCallbackFn = functions.https.onRequest(((req, resp) => bot.handleUpdate(req.body, resp)));
+export const webhookCallbackFn = functions.https
+    .onRequest(((req, resp) => bot.handleUpdate(req.body, resp)));
 
 export const helloWorld = functions.https.onRequest((request, response) => {
     response.redirect('https://t.me/cloud_santa_bot')
 });
 
-bot.telegram.setWebhook(`https://us-central1-${admin.instanceId().app.options.projectId}.cloudfunctions.net/webhookCallbackFn`).catch(console.error);
+bot.telegram
+    .setWebhook(`https://us-central1-${admin.instanceId().app.options.projectId}.cloudfunctions.net/webhookCallbackFn`)
+    .catch(console.error);
 
