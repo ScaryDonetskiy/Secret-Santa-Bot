@@ -5,19 +5,26 @@ import {CreateCommand} from "./actions/CreateCommand";
 import {RecipientCommand} from "./actions/RecipientCommand";
 import {JoinTeam} from "./actions/JoinTeam";
 import {Start} from "./actions/Start";
+import {TeamRepository} from "./repositories/TeamRepository";
+import {UserRepository} from "./repositories/UserRepository";
+import {GiftMapRepository} from "./repositories/GiftMapRepository";
 
 const db = admin.initializeApp(functions.config().firebase).firestore();
 const bot = new Telegraf(functions.config().telegram.bot_token);
 
+const teamRepository = new TeamRepository(db);
+const userRepository = new UserRepository(db);
+const giftMapRepository = new GiftMapRepository(teamRepository);
+
 bot.start(new Start().do);
 bot.command('create', ctx => {
-    new CreateCommand(db).do(ctx);
+    new CreateCommand(teamRepository, userRepository).do(ctx);
 });
 bot.command('recipient', ctx => {
-    new RecipientCommand(db).do(ctx);
+    new RecipientCommand(userRepository, giftMapRepository).do(ctx);
 });
 bot.on('text', ctx => {
-    new JoinTeam(db).do(ctx);
+    new JoinTeam(teamRepository, userRepository).do(ctx);
 });
 
 export const webhookCallbackFn = functions.https

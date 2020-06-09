@@ -1,13 +1,16 @@
-import * as admin from "firebase-admin";
 import {ContextMessageUpdate, Markup} from "telegraf";
 import * as _ from "underscore";
 import {ActionInterface} from "./ActionInterface";
+import {UserRepository} from "../repositories/UserRepository";
+import {GiftMapRepository} from "../repositories/GiftMapRepository";
 
 export class RecipientCommand implements ActionInterface {
-    private db: admin.firestore.Firestore;
+    private userRepository: UserRepository;
+    private giftMapRepository: GiftMapRepository;
 
-    constructor(db: admin.firestore.Firestore) {
-        this.db = db;
+    constructor(userRepository: UserRepository, giftMapRepository: GiftMapRepository) {
+        this.userRepository = userRepository;
+        this.giftMapRepository = giftMapRepository;
     }
 
     do(ctx: ContextMessageUpdate): void {
@@ -16,37 +19,34 @@ export class RecipientCommand implements ActionInterface {
             console.warn(ctx);
             return;
         }
-        this.db.collection('users').doc(from.id.toString()).get().then(doc => {
+        this.userRepository.find(from.id.toString()).then(doc => {
             if (doc.exists) {
-                const teamDocument = this.db.collection('teams').doc(doc.get('teamId'));
-                teamDocument.collection('gift_map').where('from', '==', doc.id).get().then(snapshot => {
+                this.giftMapRepository.findByTeamIdAndUserId(doc.get('teamId'), doc.id).then(snapshot => {
                     if (snapshot.empty) {
                         const teamMembers = <any>[];
                         const giftReceivers = <any>[];
-                        const usersPromise = this.db.collection('users').where('teamId', '==', doc.get('teamId')).get().then(usersSnapshot => {
+                        const usersPromise = this.userRepository.findByTeamId(doc.get('teamId')).then(usersSnapshot => {
                             usersSnapshot.forEach(user => teamMembers.push(user.id));
                         });
-                        const receiversPromise = teamDocument.collection('gift_map').get().then(teamSantasSnapshot => {
+                        const receiversPromise = this.giftMapRepository.findByTeamId(doc.get('teamId')).then(teamSantasSnapshot => {
                             teamSantasSnapshot.forEach(item => giftReceivers.push(item.get('to')));
                         });
                         Promise.all([usersPromise, receiversPromise]).then(() => {
                             const withoutGift = _.difference(teamMembers, giftReceivers);
-                            const userId: string|undefined = _.sample(_.without(withoutGift, doc.id));
+                            const userId: string | undefined = _.sample(_.without(withoutGift, doc.id));
                             if (userId === undefined) {
                                 ctx.reply('Sorry, we need more players :(').catch(console.log);
                                 return;
                             }
 
-                            this.db.collection('users').doc(userId).get().then(receiver => {
-                                teamDocument.collection('gift_map').doc().set({
-                                    from: doc.id,
-                                    to: receiver.id
-                                }).then(() => ctx.reply(`You are Secret Santa for @${receiver.get('username')}`), null);
+                            this.userRepository.find(userId).then(receiver => {
+                                this.giftMapRepository.setNewPair(doc.get('teamId'), doc.id, receiver.id)
+                                    .then(() => ctx.reply(`You are Secret Santa for @${receiver.get('username')}`), null);
                             }, null);
                         }, null);
                     } else {
                         snapshot.forEach(giftMapDocument => {
-                            this.db.collection('users').doc(giftMapDocument.get('to')).get().then(user => {
+                            this.userRepository.find(giftMapDocument.get('to')).then(user => {
                                 ctx.reply(`You are Secret Santa for @${user.get('username')}`).catch(console.error);
                             }, null);
                         });

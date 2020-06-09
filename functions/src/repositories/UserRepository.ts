@@ -1,31 +1,32 @@
 import * as admin from "firebase-admin";
 import {DbResult} from "../types/DbResult";
 
-export class TeamRepository {
+export class UserRepository {
     private db: admin.firestore.Firestore;
 
     constructor(db: admin.firestore.Firestore) {
         this.db = db;
     }
 
-    create(adminId: string): DbResult {
-        const document = this.getCollection().doc();
+    createToTeam(id: string, username: string, teamId: string): DbResult {
+        const document = this.getCollection().doc(id);
         const promise = document.set({
-            adminId: adminId
+            username: username,
+            teamId: teamId
         });
 
         return new DbResult(document, promise);
     }
 
     find(id: string): Promise<FirebaseFirestore.DocumentSnapshot> {
-        return this.findDoc(id).get();
+        return this.getCollection().doc(id).get();
     }
 
-    findDoc(id: string): FirebaseFirestore.DocumentReference {
-        return this.getCollection().doc(id);
+    findByTeamId(id: string): Promise<FirebaseFirestore.QuerySnapshot> {
+        return this.getCollection().where('teamId', '==', id).get();
     }
 
     private getCollection(): FirebaseFirestore.CollectionReference {
-        return this.db.collection('teams');
+        return this.db.collection('users');
     }
 }

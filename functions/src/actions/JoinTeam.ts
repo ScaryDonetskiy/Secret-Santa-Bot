@@ -1,12 +1,15 @@
-import * as admin from "firebase-admin";
 import {ContextMessageUpdate, Markup} from "telegraf";
 import {ActionInterface} from "./ActionInterface";
+import {TeamRepository} from "../repositories/TeamRepository";
+import {UserRepository} from "../repositories/UserRepository";
 
 export class JoinTeam implements ActionInterface {
-    private db: admin.firestore.Firestore;
+    private teamRepository: TeamRepository;
+    private userRepository: UserRepository;
 
-    constructor(db: admin.firestore.Firestore) {
-        this.db = db;
+    constructor(teamRepository: TeamRepository, userRepository: UserRepository) {
+        this.teamRepository = teamRepository;
+        this.userRepository = userRepository;
     }
 
     do(ctx: ContextMessageUpdate): void {
@@ -20,19 +23,15 @@ export class JoinTeam implements ActionInterface {
             console.warn(ctx);
             return;
         }
-        this.db.collection('teams').doc(text).get().then(doc => {
-            if (doc.exists) {
+        this.teamRepository.find(text).then((team: FirebaseFirestore.DocumentSnapshot) => {
+            if (team.exists) {
                 const from = ctx.from;
                 if (from === undefined) {
                     console.warn(ctx);
                     return;
                 }
-                const userDocument = this.db.collection('users').doc(from.id.toString());
                 const username = from.username === undefined ? `${from.first_name} ${from.last_name}` : from.username;
-                userDocument.set({
-                    teamId: doc.id,
-                    username: username,
-                }).then(() => ctx
+                this.userRepository.createToTeam(from.id.toString(), username, team.id).resultPromise.then(() => ctx
                     .reply(
                         'You are joined a team! Now you can send me a command "/recipient" and I\'ll choose it for you',
                         Markup.keyboard(['/recipient']).resize().extra()
